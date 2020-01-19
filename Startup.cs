@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.EntityFrameworkCore;
+using System.Reflection;
 
 namespace FutbalMng.Auth
 {
@@ -42,7 +43,8 @@ namespace FutbalMng.Auth
                 iis.AutomaticAuthentication = false;
             });
 
-            var connectionString = Configuration.GetConnectionString("DefaultConnection");
+            var connectionString = Configuration.GetConnectionString("SqlServerConnection");
+            var migrationsAssembly = typeof(Startup).GetTypeInfo().Assembly.GetName().Name;
 
             var builder = services.AddIdentityServer(options =>
                 {
@@ -55,12 +57,18 @@ namespace FutbalMng.Auth
                 // this adds the config data from DB (clients, resources, CORS)
                 .AddConfigurationStore(options =>
                 {
-                    options.ConfigureDbContext = builder => builder.UseSqlite(connectionString);
+                    options.ConfigureDbContext = builder => builder.UseSqlServer(connectionString, 
+                    sqlOption => {
+                        sqlOption.MigrationsAssembly(migrationsAssembly);
+                    });
                 })
                 // this adds the operational data from DB (codes, tokens, consents)
                 .AddOperationalStore(options =>
                 {
-                    options.ConfigureDbContext = builder => builder.UseSqlite(connectionString);
+                    options.ConfigureDbContext = builder => builder.UseSqlServer(connectionString, 
+                    sqlOption => {
+                        sqlOption.MigrationsAssembly(migrationsAssembly);
+                    });
 
                     // this enables automatic token cleanup. this is optional.
                     options.EnableTokenCleanup = true;
@@ -70,6 +78,12 @@ namespace FutbalMng.Auth
             builder.AddDeveloperSigningCredential();
 
             services.AddAuthentication()
+                .AddGitHub(options => 
+                {
+                    options.ClientId = "empty";
+                    options.ClientSecret = "empty";
+                    options.SignInScheme = IdentityServerConstants.ExternalCookieAuthenticationScheme;
+                })
                 .AddGoogle(options =>
                 {
                     options.SignInScheme = IdentityServerConstants.ExternalCookieAuthenticationScheme;
@@ -77,8 +91,8 @@ namespace FutbalMng.Auth
                     // register your IdentityServer with Google at https://console.developers.google.com
                     // enable the Google+ API
                     // set the redirect URI to http://localhost:5000/signin-google
-                    options.ClientId = "copy client ID from Google here";
-                    options.ClientSecret = "copy client secret from Google here";
+                    options.ClientId = "empty";
+                    options.ClientSecret = "empty";
                 });
         }
 

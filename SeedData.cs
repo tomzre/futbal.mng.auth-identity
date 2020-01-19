@@ -20,11 +20,11 @@ namespace FutbalMng.Auth
             var services = new ServiceCollection();
             services.AddOperationalDbContext(options =>
             {
-                options.ConfigureDbContext = db => db.UseSqlite(connectionString, sql => sql.MigrationsAssembly(typeof(SeedData).Assembly.FullName));
+                options.ConfigureDbContext = db => db.UseSqlServer(connectionString, sql => sql.MigrationsAssembly(typeof(SeedData).Assembly.FullName));
             });
             services.AddConfigurationDbContext(options =>
             {
-                options.ConfigureDbContext = db => db.UseSqlite(connectionString, sql => sql.MigrationsAssembly(typeof(SeedData).Assembly.FullName));
+                options.ConfigureDbContext = db => db.UseSqlServer(connectionString, sql => sql.MigrationsAssembly(typeof(SeedData).Assembly.FullName));
             });
 
             var serviceProvider = services.BuildServiceProvider();
