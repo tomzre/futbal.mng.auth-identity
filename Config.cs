@@ -57,9 +57,8 @@ namespace FutbalMng.Auth
                         "http://localhost:3000/popup",
                     },
 
-                    PostLogoutRedirectUris = { "http://localhost:3000/index.html" },
+                    PostLogoutRedirectUris = { "http://localhost:3000" },
                     AllowedCorsOrigins = { "http://localhost:3000" },
-
                     AllowedScopes = { "openid", "profile", "api1" }
                 }
             };

@@ -20,6 +20,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Http;
+using IdentityServer4.Stores;
+using FutbalMng.Auth.Helpers;
 
 namespace FutbalMng.Auth
 {
@@ -36,13 +38,16 @@ namespace FutbalMng.Auth
 
         public void ConfigureServices(IServiceCollection services)
         {
+            Microsoft.IdentityModel.Logging.IdentityModelEventSource.ShowPII = true;
+
             var connectionString = Configuration.GetConnectionString("SqlServerConnection");
+            services.AddTransient<IReturnUrlParser, FutbalMng.Auth.Helpers.ReturnUrlParser>();
+
             services.AddDbContext<AppIdentityDbContext>(options => options.UseSqlServer(connectionString));
             services.AddIdentity<AppUser, IdentityRole>()
                 .AddEntityFrameworkStores<AppIdentityDbContext>()
                 .AddDefaultTokenProviders();
 
-            //services.AddControllersWithViews();
             services.AddCors(setup =>
             {
                 setup.AddPolicy("CorsPolicy", policy =>
@@ -54,14 +59,11 @@ namespace FutbalMng.Auth
                 });
             });
 
-            // configures IIS out-of-proc settings (see https://github.com/aspnet/AspNetCore/issues/14882)
-            
-
             var migrationsAssembly = typeof(Startup).GetTypeInfo().Assembly.GetName().Name;
 
             var builder = services.AddIdentityServer(options =>
                 {
-                    options.UserInteraction.LoginUrl = "http://localhost:3000";
+                    options.UserInteraction.LoginUrl = "http://localhost:3000/signin";
                     options.UserInteraction.ErrorUrl = "http://localhost:3000/error";
                     options.UserInteraction.LogoutUrl = "http://localhost:3000/logout";
                     options.Events.RaiseErrorEvents = true;
@@ -69,18 +71,14 @@ namespace FutbalMng.Auth
                     options.Events.RaiseFailureEvents = true;
                     options.Events.RaiseSuccessEvents = true;
                 })
-                .AddTestUsers(TestUsers.Users)
-                .AddInMemoryClients(Config.Clients)
-                .AddInMemoryIdentityResources(Config.Ids)
-                .AddInMemoryApiResources(Config.Apis)
-                // this adds the config data from DB (clients, resources, CORS)
-                // .AddConfigurationStore(options =>
-                // {
-                //     options.ConfigureDbContext = builder => builder.UseSqlServer(connectionString, 
-                //     sqlOption => {
-                //         sqlOption.MigrationsAssembly(migrationsAssembly);
-                //     });
-                // })
+                .AddAspNetIdentity<AppUser>()
+                .AddConfigurationStore(options =>
+                {
+                    options.ConfigureDbContext = builder => builder.UseSqlServer(connectionString, 
+                    sqlOption => {
+                        sqlOption.MigrationsAssembly(migrationsAssembly);
+                    });
+                })
                 // // this adds the operational data from DB (codes, tokens, consents)
                 .AddOperationalStore(options =>
                 {
@@ -97,7 +95,11 @@ namespace FutbalMng.Auth
             // not recommended for production - you need to store your key material somewhere secure
             builder.AddDeveloperSigningCredential();
 
-            //services.AddTransient<IProfileService, IdentityClaimsProfileService>();
+             var cors = new DefaultCorsPolicyService(new LoggerFactory().CreateLogger<DefaultCorsPolicyService>())
+            {
+                AllowAll = true
+            };
+            services.AddSingleton<ICorsPolicyService>(cors);
 
             services.AddAuthentication()
                 .AddGitHub(options =>
@@ -116,26 +118,9 @@ namespace FutbalMng.Auth
                     options.ClientId = "empty";
                     options.ClientSecret = "empty";
                 });
-
-            var cors = new DefaultCorsPolicyService(new LoggerFactory().CreateLogger<DefaultCorsPolicyService>())
-            {
-                AllowAll = true
-            };
             services.AddGrpc();
-            services.AddControllers(
-    //             config =>
-    // {
-    //     var policy = new AuthorizationPolicyBuilder()
-    //                      .RequireAuthenticatedUser()
-    //                      .Build();
-    //     config.Filters.Add(new AuthorizeFilter(policy));
-    // }
-    );
-            //services.AddSingleton<ICorsPolicyService>(cors);
-            services.AddTransient<IReturnUrlParser, Helpers.ReturnUrlParser>();
-            services.AddMvc(options => {
-                options.EnableEndpointRouting = false; 
-                })
+            services.AddControllers();
+            services.AddMvc(options => {options.EnableEndpointRouting = false; })
                 .SetCompatibilityVersion(Microsoft.AspNetCore.Mvc.CompatibilityVersion.Version_3_0);
         }
 
