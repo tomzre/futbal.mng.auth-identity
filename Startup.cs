@@ -22,6 +22,7 @@ using System.Collections.Generic;
 using Microsoft.AspNetCore.Http;
 using IdentityServer4.Stores;
 using FutbalMng.Auth.Helpers;
+using futbal.mng.auth_identity.Helpers;
 
 namespace FutbalMng.Auth
 {
@@ -39,11 +40,17 @@ namespace FutbalMng.Auth
         public void ConfigureServices(IServiceCollection services)
         {
             Microsoft.IdentityModel.Logging.IdentityModelEventSource.ShowPII = true;
+            var migrationsAssembly = typeof(Startup).GetTypeInfo().Assembly.GetName().Name;
 
             var connectionString = Configuration.GetConnectionString("SqlServerConnection");
+            
+            //services.AddScoped<IUserSession, UserSession>();
             services.AddTransient<IReturnUrlParser, FutbalMng.Auth.Helpers.ReturnUrlParser>();
 
-            services.AddDbContext<AppIdentityDbContext>(options => options.UseSqlServer(connectionString));
+            services.AddDbContext<AppIdentityDbContext>(options => options.UseSqlServer(connectionString, 
+                    sqlOption => {
+                        sqlOption.MigrationsAssembly(migrationsAssembly);
+                    }));
             services.AddIdentity<AppUser, IdentityRole>()
                 .AddEntityFrameworkStores<AppIdentityDbContext>()
                 .AddDefaultTokenProviders();
@@ -59,10 +66,10 @@ namespace FutbalMng.Auth
                 });
             });
 
-            var migrationsAssembly = typeof(Startup).GetTypeInfo().Assembly.GetName().Name;
 
             var builder = services.AddIdentityServer(options =>
                 {
+                    options.Cors.CorsPaths = new List<PathString>{new PathString("/api/authenticate")};
                     options.UserInteraction.LoginUrl = "http://localhost:3000/signin";
                     options.UserInteraction.ErrorUrl = "http://localhost:3000/error";
                     options.UserInteraction.LogoutUrl = "http://localhost:3000/logout";
