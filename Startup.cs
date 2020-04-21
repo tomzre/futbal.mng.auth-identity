@@ -69,7 +69,10 @@ namespace FutbalMng.Auth
 
             var builder = services.AddIdentityServer(options =>
                 {
-                    options.Cors.CorsPaths = new List<PathString>{new PathString("/api/authenticate")};
+                    options.Cors.CorsPaths = new List<PathString>{
+                            new PathString("/api/authenticate"), 
+                            new PathString("/api/authenticate/logout")
+                            };
                     options.UserInteraction.LoginUrl = "http://localhost:3000/signin";
                     options.UserInteraction.ErrorUrl = "http://localhost:3000/error";
                     options.UserInteraction.LogoutUrl = "http://localhost:3000/logout";

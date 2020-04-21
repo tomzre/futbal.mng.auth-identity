@@ -70,6 +70,7 @@ namespace FutbalMng.Auth.Controllers {
 
             if (User?.Identity.IsAuthenticated == true) {
                 // delete local authentication cookie
+                await _signInManager.SignOutAsync();
                 await HttpContext.SignOutAsync();
             }
 
