@@ -11,6 +11,18 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection;
+using IdentityServer4.Services;
+using Microsoft.Extensions.Logging;
+using FutbalMng.Auth.Data;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc.Authorization;
+using System.Collections.Generic;
+using Microsoft.AspNetCore.Http;
+using IdentityServer4.Stores;
+using FutbalMng.Auth.Helpers;
+using futbal.mng.auth_identity.Helpers;
 
 namespace FutbalMng.Auth
 {
@@ -27,34 +39,49 @@ namespace FutbalMng.Auth
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddControllersWithViews();
-
-            // configures IIS out-of-proc settings (see https://github.com/aspnet/AspNetCore/issues/14882)
-            services.Configure<IISOptions>(iis =>
-            {
-                iis.AuthenticationDisplayName = "Windows";
-                iis.AutomaticAuthentication = false;
-            });
-
-            // configures IIS in-proc settings
-            services.Configure<IISServerOptions>(iis =>
-            {
-                iis.AuthenticationDisplayName = "Windows";
-                iis.AutomaticAuthentication = false;
-            });
+            Microsoft.IdentityModel.Logging.IdentityModelEventSource.ShowPII = true;
+            var migrationsAssembly = typeof(Startup).GetTypeInfo().Assembly.GetName().Name;
 
             var connectionString = Configuration.GetConnectionString("SqlServerConnection");
-            var migrationsAssembly = typeof(Startup).GetTypeInfo().Assembly.GetName().Name;
+            
+            //services.AddScoped<IUserSession, UserSession>();
+            services.AddTransient<IReturnUrlParser, FutbalMng.Auth.Helpers.ReturnUrlParser>();
+
+            services.AddDbContext<AppIdentityDbContext>(options => options.UseSqlServer(connectionString, 
+                    sqlOption => {
+                        sqlOption.MigrationsAssembly(migrationsAssembly);
+                    }));
+            services.AddIdentity<AppUser, IdentityRole>()
+                .AddEntityFrameworkStores<AppIdentityDbContext>()
+                .AddDefaultTokenProviders();
+
+            services.AddCors(setup =>
+            {
+                setup.AddPolicy("CorsPolicy", policy =>
+                {
+                    policy.AllowAnyHeader();
+                    policy.AllowAnyMethod();
+                    policy.WithOrigins("http://localhost:3000");
+                    policy.AllowCredentials();
+                });
+            });
+
 
             var builder = services.AddIdentityServer(options =>
                 {
+                    options.Cors.CorsPaths = new List<PathString>{
+                            new PathString("/api/authenticate"), 
+                            new PathString("/api/authenticate/logout")
+                            };
+                    options.UserInteraction.LoginUrl = "http://localhost:3000/signin";
+                    options.UserInteraction.ErrorUrl = "http://localhost:3000/error";
+                    options.UserInteraction.LogoutUrl = "http://localhost:3000/logout";
                     options.Events.RaiseErrorEvents = true;
                     options.Events.RaiseInformationEvents = true;
                     options.Events.RaiseFailureEvents = true;
                     options.Events.RaiseSuccessEvents = true;
                 })
-                .AddTestUsers(TestUsers.Users)
-                // this adds the config data from DB (clients, resources, CORS)
+                .AddAspNetIdentity<AppUser>()
                 .AddConfigurationStore(options =>
                 {
                     options.ConfigureDbContext = builder => builder.UseSqlServer(connectionString, 
@@ -62,11 +89,12 @@ namespace FutbalMng.Auth
                         sqlOption.MigrationsAssembly(migrationsAssembly);
                     });
                 })
-                // this adds the operational data from DB (codes, tokens, consents)
+                // // this adds the operational data from DB (codes, tokens, consents)
                 .AddOperationalStore(options =>
                 {
-                    options.ConfigureDbContext = builder => builder.UseSqlServer(connectionString, 
-                    sqlOption => {
+                    options.ConfigureDbContext = builder => builder.UseSqlServer(connectionString,
+                    sqlOption =>
+                    {
                         sqlOption.MigrationsAssembly(migrationsAssembly);
                     });
 
@@ -77,8 +105,14 @@ namespace FutbalMng.Auth
             // not recommended for production - you need to store your key material somewhere secure
             builder.AddDeveloperSigningCredential();
 
+             var cors = new DefaultCorsPolicyService(new LoggerFactory().CreateLogger<DefaultCorsPolicyService>())
+            {
+                AllowAll = true
+            };
+            services.AddSingleton<ICorsPolicyService>(cors);
+
             services.AddAuthentication()
-                .AddGitHub(options => 
+                .AddGitHub(options =>
                 {
                     options.ClientId = "empty";
                     options.ClientSecret = "empty";
@@ -94,6 +128,10 @@ namespace FutbalMng.Auth
                     options.ClientId = "empty";
                     options.ClientSecret = "empty";
                 });
+            services.AddGrpc();
+            services.AddControllers();
+            services.AddMvc(options => {options.EnableEndpointRouting = false; })
+                .SetCompatibilityVersion(Microsoft.AspNetCore.Mvc.CompatibilityVersion.Version_3_0);
         }
 
         public void Configure(IApplicationBuilder app)
@@ -103,16 +141,13 @@ namespace FutbalMng.Auth
                 app.UseDeveloperExceptionPage();
                 app.UseDatabaseErrorPage();
             }
-
             app.UseStaticFiles();
+            app.UseCors("CorsPolicy");
 
-            app.UseRouting();
+            //app.UseRouting();
             app.UseIdentityServer();
-            app.UseAuthorization();
-            app.UseEndpoints(endpoints =>
-            {
-                endpoints.MapDefaultControllerRoute();
-            });
+            app.UseMvc();
+            // app.UseAuthorization();
         }
     }
 }

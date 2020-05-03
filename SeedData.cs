@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Linq;
 using IdentityServer4.EntityFramework.Storage;
 using Serilog;
+using FutbalMng.Auth.Data;
 
 namespace FutbalMng.Auth
 {
@@ -26,13 +27,13 @@ namespace FutbalMng.Auth
             {
                 options.ConfigureDbContext = db => db.UseSqlServer(connectionString, sql => sql.MigrationsAssembly(typeof(SeedData).Assembly.FullName));
             });
-
+            
             var serviceProvider = services.BuildServiceProvider();
 
             using (var scope = serviceProvider.GetRequiredService<IServiceScopeFactory>().CreateScope())
             {
                 scope.ServiceProvider.GetService<PersistedGrantDbContext>().Database.Migrate();
-
+                //scope.ServiceProvider.GetService<AppIdentityDbContext>().Database.Migrate();
                 var context = scope.ServiceProvider.GetService<ConfigurationDbContext>();
                 context.Database.Migrate();
                 EnsureSeedData(context);
