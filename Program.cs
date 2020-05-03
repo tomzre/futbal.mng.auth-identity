@@ -69,7 +69,7 @@ namespace FutbalMng.Auth {
                         .AddEnvironmentVariables ();
                 });
                 webBuilder.UseStartup<Startup> ();
-                webBuilder.UseSerilog ();
+                webBuilder.UseSerilog();
             });
     }
 }
