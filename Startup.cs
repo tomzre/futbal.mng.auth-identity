@@ -31,6 +31,9 @@ using System.IO;
 using RawRabbit.Enrichers.MessageContext.Context;
 using Microsoft.AspNetCore.Http.Extensions;
 using RawRabbit;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using HealthChecks.UI.Client;
 
 namespace FutbalMng.Auth
 {
@@ -139,17 +142,42 @@ namespace FutbalMng.Auth
                     // enable the Google+ API
                     // set the redirect URI to http://localhost:5000/signin-google
 
-                    options.ClientId = "--";
-                    options.ClientSecret = "secret";
+                    options.ClientId = "470528826889-12ja60pp51s6vciionaiieeurd872gsv.apps.googleusercontent.com";
+                    options.ClientSecret = Configuration["ExternalProviders:GoogleSecret"];
+                    //options.ClientId = "434483408261-55tc8n0cs4ff1fe21ea8df2o443v2iuc.apps.googleusercontent.com";
+                    //options.ClientSecret = "3gcoTrEDPPJ0ukn_aYYT6PWo";
                 })
-                .AddFacebook(options => 
+                .AddFacebook(options =>
                 {
                     options.SignInScheme = IdentityServerConstants.ExternalCookieAuthenticationScheme;
                     options.AppId = "--";
                     options.ClientSecret = "secret";
+                })
+                .AddOpenIdConnect("oidc", "Demo IdentityServer", options =>
+                {
+                    options.SignInScheme = IdentityServerConstants.ExternalCookieAuthenticationScheme;
+                    options.SignOutScheme = IdentityServerConstants.SignoutScheme;
+                    options.SaveTokens = true;
+
+                    options.Authority = "https://demo.identityserver.io/";
+                    options.ClientId = "native.code";
+                    options.ClientSecret = "secret";
+                    options.ResponseType = "code";
+
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        NameClaimType = "name",
+                        RoleClaimType = "role"
+                    };
                 });
             services.AddGrpc();
-            
+            services.AddHealthChecks()
+                .AddSqlServer(connectionString, "select * from dbo.clients");
+
+            services
+                .AddHealthChecksUI()
+                .AddInMemoryStorage();
+
             services.AddControllers()
                 .AddNewtonsoftJson(options =>
             options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore
@@ -167,10 +195,16 @@ namespace FutbalMng.Auth
             }
             app.UseStaticFiles();
             app.UseCors("CorsPolicy");
-
+            //app.UseHealthChecks("/api/health");
             //app.UseRouting();
             app.UseIdentityServer();
             app.UseMvc();
+            app
+            .UseRouting()
+            .UseEndpoints(config =>
+                {
+                    config.MapHealthChecksUI();
+                });
             // app.UseAuthorization();
         }
     }

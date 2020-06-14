@@ -107,7 +107,10 @@ namespace FutbalMng.Auth.Controllers
         [HttpGet("externalLogin")]
         public async Task<IActionResult> ExternalLogin(string provider, string returnUrl)
         {
-            var redirectUri = Url.Action(nameof(ExternalLoginCallback), "Authenticate", new {returnUrl});
+            var actionAddress = Url.Action(nameof(ExternalLoginCallback), "Authenticate", new {returnUrl});
+
+            var redirectUri = "http://localhost:5000" + actionAddress;
+            
             var properties = _signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUri);
             
             return Challenge(properties, provider);

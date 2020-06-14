@@ -11,15 +11,18 @@ using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
 
-namespace FutbalMng.Auth {
-    public class Program {
-        public static int Main (string[] args) {
-            Log.Logger = new LoggerConfiguration ()
-                .MinimumLevel.Debug ()
-                .MinimumLevel.Override ("Microsoft", LogEventLevel.Warning)
-                .MinimumLevel.Override ("System", LogEventLevel.Warning)
-                .MinimumLevel.Override ("Microsoft.AspNetCore.Authentication", LogEventLevel.Information)
-                .Enrich.FromLogContext ()
+namespace FutbalMng.Auth
+{
+    public class Program
+    {
+        public static int Main(string[] args)
+        {
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Debug()
+                .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+                .MinimumLevel.Override("System", LogEventLevel.Warning)
+                .MinimumLevel.Override("Microsoft.AspNetCore.Authentication", LogEventLevel.Information)
+                .Enrich.FromLogContext()
                 // uncomment to write to Azure diagnostics stream
                 //.WriteTo.File(
                 //    @"D:\home\LogFiles\Application\identityserver.txt",
@@ -27,48 +30,61 @@ namespace FutbalMng.Auth {
                 //    rollOnFileSizeLimit: true,
                 //    shared: true,
                 //    flushToDiskInterval: TimeSpan.FromSeconds(1))
-                .WriteTo.Console (outputTemplate: "[{Timestamp:HH:mm:ss} {Level}] {SourceContext}{NewLine}{Message:lj}{NewLine}{Exception}{NewLine}", theme : AnsiConsoleTheme.Literate)
-                .CreateLogger ();
+                .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level}] {SourceContext}{NewLine}{Message:lj}{NewLine}{Exception}{NewLine}", theme: AnsiConsoleTheme.Literate)
+                .CreateLogger();
 
-            try {
-                var seed = args.Contains ("/seed");
-                if (seed) {
-                    args = args.Except (new [] { "/seed" }).ToArray ();
+            try
+            {
+                var seed = args.Contains("/seed");
+                if (seed)
+                {
+                    args = args.Except(new[] { "/seed" }).ToArray();
                 }
 
-                var host = CreateHostBuilder (args).Build ();
+                var host = CreateHostBuilder(args).Build();
 
-                if (seed) {
-                    Log.Information ("Seeding database...");
-                    var config = host.Services.GetRequiredService<IConfiguration> ();
-                    var connectionString = config.GetConnectionString ("SqlServerConnection");
-                    SeedData.EnsureSeedData (connectionString);
-                    Log.Information ("Done seeding database.");
+                if (seed)
+                {
+                    Log.Information("Seeding database...");
+                    var config = host.Services.GetRequiredService<IConfiguration>();
+                    var connectionString = config.GetConnectionString("SqlServerConnection");
+                    SeedData.EnsureSeedData(connectionString);
+                    Log.Information("Done seeding database.");
                     return 0;
                 }
 
-                Log.Information ("Starting host...");
-                host.Run ();
+                Log.Information("Starting host...");
+                host.Run();
                 return 0;
-            } catch (Exception ex) {
-                Log.Fatal (ex, "Host terminated unexpectedly.");
+            }
+            catch (Exception ex)
+            {
+                Log.Fatal(ex, "Host terminated unexpectedly.");
                 return 1;
-            } finally {
-                Log.CloseAndFlush ();
+            }
+            finally
+            {
+                Log.CloseAndFlush();
             }
         }
 
-        public static IHostBuilder CreateHostBuilder (string[] args) =>
-            Host.CreateDefaultBuilder (args)
+        public static IHostBuilder CreateHostBuilder(string[] args) =>
+            Host.CreateDefaultBuilder(args)
+            .ConfigureWebHostDefaults(webBuilder =>
+            {
+                webBuilder.ConfigureAppConfiguration((WebHostBuilderContext ctx, IConfigurationBuilder builder) =>
+                {
+                    builder.SetBasePath(ctx.HostingEnvironment.ContentRootPath)
+                        .AddJsonFile("./appsettings.json", optional: false, reloadOnChange: true)
+                        .AddJsonFile($"./appsettings.{ctx.HostingEnvironment.EnvironmentName}.json", optional: false)
+                        .AddEnvironmentVariables();
 
-            .ConfigureWebHostDefaults (webBuilder => {
-                webBuilder.ConfigureAppConfiguration ((WebHostBuilderContext ctx, IConfigurationBuilder builder) => {
-                    builder.SetBasePath (ctx.HostingEnvironment.ContentRootPath)
-                        .AddJsonFile ("./appsettings.json", optional : false, reloadOnChange : true)
-                        .AddJsonFile ($"./appsettings.{ctx.HostingEnvironment.EnvironmentName}.json", optional : false)
-                        .AddEnvironmentVariables ();
+                    if (ctx.HostingEnvironment.IsDevelopment())
+                    {
+                        builder.AddUserSecrets<Program>();
+                    }
                 });
-                webBuilder.UseStartup<Startup> ();
+                webBuilder.UseStartup<Startup>();
                 webBuilder.UseSerilog();
             });
     }
