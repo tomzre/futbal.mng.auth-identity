@@ -1,11 +1,10 @@
 using System.Threading;
 using System.Threading.Tasks;
 using RabbitMQ.Client;
-using RawRabbit.Channel.Abstraction;
 
 namespace futbal.mng.auth_identity.Services
 {
-    public class CustomChannelFactory : IChannelFactory
+    public class CustomChannelFactory 
     {
         public Task<IModel> CreateChannelAsync(CancellationToken token = default)
         {

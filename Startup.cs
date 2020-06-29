@@ -2,7 +2,6 @@
 // Licensed under the Apache License, Version 2.0. See LICENSE in the project root for license information.
 
 using IdentityServer4;
-using IdentityServer4.Quickstart.UI;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,26 +13,10 @@ using IdentityServer4.Services;
 using Microsoft.Extensions.Logging;
 using FutbalMng.Auth.Data;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc.Authorization;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Http;
-using IdentityServer4.Stores;
-using FutbalMng.Auth.Helpers;
-using futbal.mng.auth_identity.Helpers;
-using RawRabbit.DependencyInjection.ServiceCollection;
-using RawRabbit.Configuration;
-using RawRabbit.Instantiation;
-using RawRabbit.Enrichers.MessageContext;
-using RawRabbit.Channel.Abstraction;
-using System.IO;
-using RawRabbit.Enrichers.MessageContext.Context;
-using Microsoft.AspNetCore.Http.Extensions;
-using RawRabbit;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using HealthChecks.UI.Client;
+using futbal.mng.auth_identity.Extensions;
 
 namespace FutbalMng.Auth
 {
@@ -53,8 +36,10 @@ namespace FutbalMng.Auth
             Microsoft.IdentityModel.Logging.IdentityModelEventSource.ShowPII = true;
             var migrationsAssembly = typeof(Startup).GetTypeInfo().Assembly.GetName().Name;
 
-            var rabbitConfig = new RawRabbitConfiguration();
+            var rabbitConfig = new {};
             Configuration.GetSection("rabbitmq").Bind(rabbitConfig);
+
+            services.AddRabbit();
 
             var connectionString = Configuration.GetConnectionString("SqlServerConnection");
 
@@ -123,6 +108,7 @@ namespace FutbalMng.Auth
 
             var cors = new DefaultCorsPolicyService(new LoggerFactory().CreateLogger<DefaultCorsPolicyService>())
             {
+                //AllowedOrigins = new List<string>{"http://localhost:3000/"}
                 AllowAll = true
             };
             services.AddSingleton<ICorsPolicyService>(cors);
