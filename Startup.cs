@@ -17,6 +17,8 @@ using System.Collections.Generic;
 using Microsoft.AspNetCore.Http;
 using Microsoft.IdentityModel.Tokens;
 using futbal.mng.auth_identity.Extensions;
+using Microsoft.AspNetCore.ResponseCompression;
+using System.IO.Compression;
 
 namespace FutbalMng.Auth
 {
@@ -33,12 +35,17 @@ namespace FutbalMng.Auth
 
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddResponseCompression();
             Microsoft.IdentityModel.Logging.IdentityModelEventSource.ShowPII = true;
             var migrationsAssembly = typeof(Startup).GetTypeInfo().Assembly.GetName().Name;
 
-            var rabbitConfig = new {};
+            var rabbitConfig = new { };
             Configuration.GetSection("rabbitmq").Bind(rabbitConfig);
 
+            services.Configure<BrotliCompressionProviderOptions>(options =>
+            {
+                options.Level = CompressionLevel.Fastest;
+            });
             services.AddRabbit();
 
             var connectionString = Configuration.GetConnectionString("SqlServerConnection");
@@ -174,6 +181,7 @@ namespace FutbalMng.Auth
 
         public void Configure(IApplicationBuilder app)
         {
+            app.UseResponseCompression();
             if (Environment.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
