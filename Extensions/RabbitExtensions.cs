@@ -7,7 +7,7 @@ namespace futbal.mng.auth_identity.Extensions
     {
         public static IServiceCollection AddRabbit(this IServiceCollection services)
         {
-            var factory = new ConnectionFactory{ HostName = "localhost", Password = "guest", UserName= "guest", Port = 5672 };
+            var factory = new ConnectionFactory{ HostName = "localhost", Password = "guest", UserName= "futbal-authorization", Port = 5672 };
 
             // services.AddTransient(typeof(ConnectionFactory));
 

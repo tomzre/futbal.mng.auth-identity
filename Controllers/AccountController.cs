@@ -42,11 +42,11 @@ namespace FutbalMng.Auth.Controllers
             await _userManager.AddClaimAsync(user, new System.Security.Claims.Claim("email", user.Email));
             // await _userManager.AddClaimAsync(user, new System.Security.Claims.Claim("role", Roles.Consumer));
 
-            _channel.QueueDeclare(queue: "identity.user",
-                                 durable: false,
-                                 exclusive: false,
-                                 autoDelete: false,
-                                 arguments: null);
+            // _channel.QueueDeclare(queue: "identity.user",
+            //                      durable: true,
+            //                      exclusive: false,
+            //                      autoDelete: false,
+            //                      arguments: null);
 
             
             var newUser = new {
@@ -59,9 +59,15 @@ namespace FutbalMng.Auth.Controllers
             var payload = JsonConvert.SerializeObject(newUser);
             var body = Encoding.UTF8.GetBytes(payload);
 
-            _channel.BasicPublish(exchange: "",
-                                 routingKey: "identity.user",
-                                 basicProperties: null,
+            _channel.ExchangeDeclare("BROKER_NAME", type: "direct", durable: true);
+            var properties = _channel.CreateBasicProperties();
+
+            properties.DeliveryMode = 2;
+
+            _channel.BasicPublish(exchange: "BROKER_NAME",
+                                 routingKey: "UserCreatedEvent",
+                                 mandatory: true,
+                                 basicProperties: properties,
                                  body: body);
 
             return Ok(new RegisterResponseViewModel(user));
